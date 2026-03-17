@@ -1,7 +1,11 @@
-const { execSync } = require("child_process");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+const ffprobePath = require("@ffprobe-installer/ffprobe").path;
 const path = require("path");
-const config = require("../config");
 const logger = require("../utils/logger");
+
+ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
 
 const SCALE_FILTERS = {
   "9:16": "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
@@ -15,11 +19,37 @@ class FfmpegService {
    * Probe the total duration (seconds) of a media file.
    */
   getDuration(filePath) {
-    const raw = execSync(
-      `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
-      { encoding: "utf-8" }
-    );
-    return Math.floor(parseFloat(raw.trim()));
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) return reject(err);
+        resolve(Math.floor(metadata.format.duration || 0));
+      });
+    });
+  }
+
+  /**
+   * Split a single clip from a video.
+   * @returns {Promise<void>}
+   */
+  _splitOneClip(inputFile, outPath, start, duration, filterStr) {
+    return new Promise((resolve, reject) => {
+      let cmd = ffmpeg(inputFile)
+        .setStartTime(start)
+        .setDuration(duration)
+        .videoCodec("libx264")
+        .audioCodec("aac")
+        .outputOptions("-y");
+
+      if (filterStr) {
+        cmd = cmd.videoFilter(filterStr);
+      }
+
+      cmd
+        .output(outPath)
+        .on("end", resolve)
+        .on("error", reject)
+        .run();
+    });
   }
 
   /**
@@ -27,13 +57,12 @@ class FfmpegService {
    * @param {string} inputFile - absolute path to source video
    * @param {string} workDir   - directory to write clips into
    * @param {object} opts      - { clipDuration, frameSize, workId }
-   * @returns {{ clips: Array, totalDuration: number }}
+   * @returns {Promise<{ clips: Array, totalDuration: number }>}
    */
-  splitVideo(inputFile, workDir, { clipDuration, frameSize, workId }) {
-    const totalDuration = this.getDuration(inputFile);
+  async splitVideo(inputFile, workDir, { clipDuration, frameSize, workId }) {
+    const totalDuration = await this.getDuration(inputFile);
     const numClips = Math.ceil(totalDuration / clipDuration);
-    const vf = SCALE_FILTERS[frameSize] || null;
-    const filterArg = vf ? `-vf "${vf}"` : "";
+    const filterStr = SCALE_FILTERS[frameSize] || null;
 
     logger.info(`Splitting into ${numClips} clips (${clipDuration}s each, frame: ${frameSize})`);
 
@@ -44,13 +73,8 @@ class FfmpegService {
       const duration = Math.min(clipDuration, totalDuration - start);
       const outPath = path.join(workDir, `clip_${i + 1}.mp4`);
 
-      const cmd = `ffmpeg -ss ${start} -i "${inputFile}" -t ${duration} ${filterArg} -c:v libx264 -c:a aac -y "${outPath}"`;
-      logger.debug(`ffmpeg: ${cmd}`);
-
-      execSync(cmd, {
-        encoding: "utf-8",
-        timeout: config.ffmpeg.splitTimeout,
-      });
+      logger.debug(`Creating clip ${i + 1}: start=${start}s, duration=${duration}s`);
+      await this._splitOneClip(inputFile, outPath, start, duration, filterStr);
 
       clips.push({
         id: i + 1,
@@ -64,5 +88,8 @@ class FfmpegService {
     return { clips, totalDuration };
   }
 }
+
+module.exports = new FfmpegService();
+
 
 module.exports = new FfmpegService();

@@ -7,12 +7,12 @@ const logger = require("../utils/logger");
 /**
  * POST /api/info — get video metadata.
  */
-exports.getInfo = (req, res, next) => {
+exports.getInfo = async (req, res, next) => {
   try {
     const url = sanitizeUrl(req.body.url);
     if (!url) return res.status(400).json({ error: "A valid URL is required" });
 
-    const info = ytdlp.getVideoInfo(url);
+    const info = await ytdlp.getVideoInfo(url);
     res.json(info);
   } catch (err) {
     logger.error("Info error:", err.message);
@@ -23,7 +23,7 @@ exports.getInfo = (req, res, next) => {
 /**
  * POST /api/download — download entire video as MP4.
  */
-exports.download = (req, res, next) => {
+exports.download = async (req, res, next) => {
   const url = sanitizeUrl(req.body.url);
   if (!url) return res.status(400).json({ error: "A valid URL is required" });
 
@@ -32,7 +32,7 @@ exports.download = (req, res, next) => {
 
   try {
     const outTemplate = path.join(dir, "%(title)s.%(ext)s");
-    ytdlp.downloadVideo(url, outTemplate, { format_id, quality });
+    await ytdlp.downloadVideo(url, outTemplate, { format_id, quality });
 
     const file = fileService.findVideoFile(dir);
     if (!file) throw new Error("No output file found after download");

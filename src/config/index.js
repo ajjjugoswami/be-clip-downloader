@@ -19,15 +19,7 @@ const config = {
 
   paths: {
     temp: path.join(os.tmpdir(), "clipstream"),
-  },
-
-  ytdlp: {
-    infoTimeout: 30_000,
-    downloadTimeout: 300_000,
-  },
-
-  ffmpeg: {
-    splitTimeout: 120_000,
+    ytdlpBinary: path.join(__dirname, "..", "..", "bin", "yt-dlp" + (process.platform === "win32" ? ".exe" : "")),
   },
 
   split: {

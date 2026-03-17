@@ -1,18 +1,23 @@
-const { execSync } = require("child_process");
+const YTDlpWrap = require("yt-dlp-wrap").default;
 const config = require("../config");
 const logger = require("../utils/logger");
 
 class YtdlpService {
+  constructor() {
+    this.ytdlp = new YTDlpWrap(config.paths.ytdlpBinary);
+  }
+
   /**
    * Fetch video metadata (title, thumbnail, duration, formats).
    */
-  getVideoInfo(url) {
+  async getVideoInfo(url) {
     logger.info(`Fetching video info: ${url}`);
 
-    const raw = execSync(`yt-dlp --dump-json --no-download -- "${url}"`, {
-      encoding: "utf-8",
-      timeout: config.ytdlp.infoTimeout,
-    });
+    const raw = await this.ytdlp.execPromise([
+      url,
+      "--dump-json",
+      "--no-download",
+    ]);
 
     const info = JSON.parse(raw);
 
@@ -42,34 +47,34 @@ class YtdlpService {
    * @param {string} outTemplate - yt-dlp output template path
    * @param {object} opts - { format_id, quality }
    */
-  downloadVideo(url, outTemplate, opts = {}) {
-    const formatArg = this._buildFormatArg(opts);
-    const cmd = `yt-dlp ${formatArg} --merge-output-format mp4 -o "${outTemplate}" -- "${url}"`;
+  async downloadVideo(url, outTemplate, opts = {}) {
+    const args = [
+      url,
+      ...this._buildFormatArgs(opts),
+      "--merge-output-format", "mp4",
+      "-o", outTemplate,
+    ];
 
-    logger.info(`Downloading video: ${cmd}`);
-
-    execSync(cmd, {
-      encoding: "utf-8",
-      timeout: config.ytdlp.downloadTimeout,
-    });
+    logger.info(`Downloading video: yt-dlp ${args.join(" ")}`);
+    await this.ytdlp.execPromise(args);
   }
 
   /**
-   * Build the -f argument for yt-dlp.
+   * Build format arguments array for yt-dlp.
    */
-  _buildFormatArg({ format_id, quality } = {}) {
+  _buildFormatArgs({ format_id, quality } = {}) {
     if (format_id && /^\d+$/.test(String(format_id))) {
-      return `-f ${format_id}`;
+      return ["-f", String(format_id)];
     }
 
     if (quality) {
       const h = parseInt(quality, 10);
       if (!isNaN(h) && h > 0 && h <= 4320) {
-        return `-f "bestvideo[height<=${h}]+bestaudio/best[height<=${h}]/best"`;
+        return ["-f", `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]/best`];
       }
     }
 
-    return `-f "bestvideo+bestaudio/best"`;
+    return ["-f", "bestvideo+bestaudio/best"];
   }
 }
 

@@ -7,9 +7,9 @@ const { sanitizeUrl } = require("../utils/sanitize");
 const logger = require("../utils/logger");
 
 /**
- * POST /api/split — download video + split it into clips.
+ * POST /api/clips/split — download video + split it into clips.
  */
-exports.split = (req, res, next) => {
+exports.split = async (req, res, next) => {
   const url = sanitizeUrl(req.body.url);
   if (!url) return res.status(400).json({ error: "A valid URL is required" });
 
@@ -26,7 +26,7 @@ exports.split = (req, res, next) => {
   try {
     // 1. Download
     const dlTemplate = path.join(dir, "source.%(ext)s");
-    ytdlp.downloadVideo(url, dlTemplate, {});
+    await ytdlp.downloadVideo(url, dlTemplate, {});
 
     const sourceFile = fileService.findByPrefix(dir, "source");
     if (!sourceFile) throw new Error("Download failed — no source file");
@@ -34,7 +34,7 @@ exports.split = (req, res, next) => {
     const inputFile = path.join(dir, sourceFile);
 
     // 2. Split
-    const { clips, totalDuration } = ffmpeg.splitVideo(inputFile, dir, {
+    const { clips, totalDuration } = await ffmpeg.splitVideo(inputFile, dir, {
       clipDuration,
       frameSize,
       workId: id,
