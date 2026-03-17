@@ -90,6 +90,3 @@ class FfmpegService {
 }
 
 module.exports = new FfmpegService();
-
-
-module.exports = new FfmpegService();

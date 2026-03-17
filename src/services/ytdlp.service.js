@@ -21,16 +21,26 @@ class YtdlpService {
 
     const info = JSON.parse(raw);
 
+    // Build a deduplicated list of available qualities
+    const seen = new Set();
     const formats = (info.formats || [])
-      .filter((f) => f.vcodec !== "none" && f.ext === "mp4")
+      .filter((f) => f.vcodec !== "none")
       .map((f) => ({
         id: f.format_id,
-        label: f.format_note || `${f.height}p`,
+        label: f.format_note || (f.height ? `${f.height}p` : null),
         ext: f.ext,
         height: f.height,
         filesize: f.filesize,
+        hasAudio: f.acodec !== "none",
       }))
+      .filter((f) => f.height && f.label)
       .sort((a, b) => (b.height || 0) - (a.height || 0))
+      .filter((f) => {
+        const key = f.height;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 6);
 
     return {
@@ -52,6 +62,8 @@ class YtdlpService {
       url,
       ...this._buildFormatArgs(opts),
       "--merge-output-format", "mp4",
+      "--embed-metadata",
+      "--no-playlist",
       "-o", outTemplate,
     ];
 
@@ -63,8 +75,9 @@ class YtdlpService {
    * Build format arguments array for yt-dlp.
    */
   _buildFormatArgs({ format_id, quality } = {}) {
-    if (format_id && /^\d+$/.test(String(format_id))) {
-      return ["-f", String(format_id)];
+    // If a specific format_id is given, pair it with best audio
+    if (format_id && /^[\d]+$/.test(String(format_id))) {
+      return ["-f", `${format_id}+bestaudio/best`];
     }
 
     if (quality) {
@@ -74,6 +87,7 @@ class YtdlpService {
       }
     }
 
+    // Default: always merge best video + best audio
     return ["-f", "bestvideo+bestaudio/best"];
   }
 }
