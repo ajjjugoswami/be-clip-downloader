@@ -17,6 +17,8 @@ const config = {
     max: 30,
   },
 
+  jwtSecret: process.env.JWT_SECRET || "clipstream-dev-secret-change-in-production",
+
   paths: {
     temp: path.join(os.tmpdir(), "clipstream"),
     ytdlpBinary: path.join(__dirname, "..", "..", "bin", "yt-dlp" + (process.platform === "win32" ? ".exe" : "")),
