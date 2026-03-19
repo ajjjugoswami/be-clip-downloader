@@ -14,16 +14,16 @@ exports.register = async (req, res, next) => {
     if (password.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
-    if (store.users.findByEmail(email)) {
+    if (await store.users.findByEmail(email)) {
       return res.status(409).json({ error: "An account with this email already exists" });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = store.users.create({ name: name.trim(), email, passwordHash });
-    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "30d" });
+    const user = await store.users.create({ name: name.trim(), email, passwordHash });
+    const token = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: "30d" });
 
     logger.info(`New user registered: ${user.email}`);
-    res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
     next(err);
   }
@@ -37,7 +37,7 @@ exports.login = async (req, res, next) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const user = store.users.findByEmail(email);
+    const user = await store.users.findByEmail(email);
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
@@ -47,16 +47,16 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "30d" });
+    const token = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: "30d" });
     logger.info(`User logged in: ${user.email}`);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
     next(err);
   }
 };
 
-exports.me = (req, res) => {
-  const user = store.users.findById(req.userId);
+exports.me = async (req, res) => {
+  const user = await store.users.findById(req.userId);
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json({ id: user.id, name: user.name, email: user.email });
+  res.json({ id: user._id, name: user.name, email: user.email });
 };
