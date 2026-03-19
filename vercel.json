@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+ 
+  "env": {
+    "PORT": "3000",
+    "MONGODB_URI": "mongodb+srv://Vercel-Admin-atlas-almond-horizon:1hcI0Trb3srFi7Am@atlas-almond-horizon.grayj7h.mongodb.net/?retryWrites=true&w=majority",
+    "JWT_SECRET": "your_super_secret_jwt_key_change_this_in_production_2024_qr_generator_app",
+    "NODE_ENV": "production"
+  }
+}
