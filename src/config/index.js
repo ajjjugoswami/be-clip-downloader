@@ -8,7 +8,9 @@ const config = {
   logLevel: process.env.LOG_LEVEL || "info",
 
   cors: {
-    origin: process.env.CORS_ORIGIN || "*",
+    origins: [
+      "https://clip-download-master.vercel.app",
+    ],
     methods: ["GET", "POST"],
   },
 
