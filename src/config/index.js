@@ -20,6 +20,7 @@ const config = {
   paths: {
     temp: path.join(os.tmpdir(), "clipstream"),
     ytdlpBinary: path.join(__dirname, "..", "..", "bin", "yt-dlp" + (process.platform === "win32" ? ".exe" : "")),
+    ffmpegBinary: require("@ffmpeg-installer/ffmpeg").path,
   },
 
   split: {

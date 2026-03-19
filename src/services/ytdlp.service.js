@@ -61,7 +61,11 @@ class YtdlpService {
     const args = [
       url,
       ...this._buildFormatArgs(opts),
+      "--ffmpeg-location", config.paths.ffmpegBinary,
       "--merge-output-format", "mp4",
+      // Re-encode audio to AAC so it's always MP4-compatible (VP9/Opus from
+      // WebM-sourced formats cannot be stream-copied into an MP4 container).
+      "--postprocessor-args", "ffmpeg:-c:a aac -c:v copy",
       "--embed-metadata",
       "--no-playlist",
       "-o", outTemplate,
@@ -75,8 +79,9 @@ class YtdlpService {
    * Build format arguments array for yt-dlp.
    */
   _buildFormatArgs({ format_id, quality } = {}) {
-    // If a specific format_id is given, pair it with best audio
-    if (format_id && /^[\d]+$/.test(String(format_id))) {
+    // If a specific format_id is given, pair it with best audio.
+    // Format IDs may include digits, letters, hyphens, and underscores (e.g. "248-sr").
+    if (format_id && /^[\w][\w\-]*$/.test(String(format_id))) {
       return ["-f", `${format_id}+bestaudio/best`];
     }
 
